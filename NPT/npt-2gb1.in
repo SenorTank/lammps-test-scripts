@@ -1,0 +1,43 @@
+# Created by charmm2lammps v1.9.2 on Wed May 24 10:57:59 AM MDT 2023
+# Command: charmm2lammps.pl -water -center -border=40 all36_prot 2gb1
+
+units           real
+neigh_modify    delay 2 every 1
+
+atom_style      full
+bond_style      harmonic
+angle_style     charmm
+dihedral_style  charmm
+improper_style  harmonic
+
+pair_style      lj/charmm/coul/long 8 12
+pair_modify     mix arithmetic
+kspace_style    pppm 1e-6
+
+read_data       2gb1/minimized-2gb1.data
+
+special_bonds   charmm
+thermo          10
+thermo_style    multi
+timestep        1.0
+
+min_style	cg
+minimize        1e-4 1e-6 1000 200
+min_style	sd
+minimize        1e-4 1e-6 1000 200
+
+fix             1 all shake 1e-6 500 0 m 1.0 a 112
+fix             2 all npt temp 300.0 300.0 100.0 aniso 1.0 1.0 1000.0 tchain 10 pchain 10
+# fix 		extra all print 50 """{"timestep": $(step), "pe": $(pe), "ke": $(ke), "etotal": $(etotal)}""" title "" file 2gb1/output.json screen no
+fix 		extra all print 50 """{"timestep": $(step), "lx": $(lx), "ly": $(ly), "lz": $(lz)}""" title "" file 2gb1/output-box.json screen no
+velocity        all create 0.0 12345678 dist uniform
+
+compute		1 all property/local batom1 batom2 btype
+compute		2 all bond/local dist engpot
+dump		1 all local 100 2gb1/bonds.dump index c_1[*] c_2[*]
+dump		2 all atom 100 2gb1/2gb1.dump
+dump_modify	2 image yes scale yes
+
+run		20000
+
+write_data	npt-2gb1.data
